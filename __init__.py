@@ -24,7 +24,7 @@ VERBOSITY_LEVEL = 0
 timestamp = lambda: time.strftime('%b %d, %H:%M:%S', time.localtime(time.time()))
 
 def logger(level, log_type, func_name):
-    if VERBOSITY_LEVEL > level:
+    if (mpi4py_loaded and MPI.COMM_WORLD.rank != 0) or VERBOSITY_LEVEL > level:
         return
     stack = traceback.extract_stack()
     for i,entry in enumerate(stack):
@@ -487,44 +487,50 @@ class Emoo:
         logger(0, 'stop', 'new_generation')
         
     def dominates(self, p, q):
-        logger(-1, 'start', 'dominates')
+        #logger(-1, 'start', 'dominates')
 
         objectives_error1 = self.population[p][self.objpos:self.objpos+self.obj]
         objectives_error2 = self.population[q][self.objpos:self.objpos+self.obj]
         
         diff12 = objectives_error1 - objectives_error2
         
-        logger(-1, 'stop', 'dominates')
+        #logger(-1, 'stop', 'dominates')
         # is individdum equal or better then individdum two?
         # and at least in one objective better
         # then it dominates individuum2
         # if not it does not dominate two (which does not mean that 2 may not dominate 1)
-        return ( ((diff12<= 0).all()) and ((diff12 < 0).any()) )
+        return np.random.uniform() < 0.5
+        #return ( ((diff12<= 0).all()) and ((diff12 < 0).any()) )
 
     
     def assign_rank(self):
         logger(0, 'start', 'assign_rank')
-        F = dict()
+        #F = dict()
 
         P = self.population
         
-        S = dict()
-        n = dict()
-        F[0] = []
+        #S = dict()
+        #n = dict()
+        #F[0] = []
+        S = [[] for i in range(len(P))]
+        n = [0 for i in range(len(P))]
+        F = [[]]
         
         # determine how many solutions are dominated or dominate
+        logger(0, 'start', 'assign_rank_1_1')
         for p in range(len(P)):
             
-            S[p] = []       # this is the list of solutions dominated by p
-            n[p] = 0        # how many solutions are dominating p
+            #S[p] = []       # this is the list of solutions dominated by p
+            #n[p] = 0        # how many solutions are dominating p
             
+            logger(0, 'start', 'assign_rank_1_2')
             for q in range(len(P)):
                 
                 if self.dominates(p, q):
                     S[p].append(q)      # add q to the list of solutions dominated by p
                 elif self.dominates(q, p):
                     n[p] += 1           # q dominates p, thus increase number of solutions that dominate p
-                
+            logger(0, 'stop', 'assign_rank_1_2')
             
             if n[p] == 0:       # no other solution dominates p
                 
@@ -532,16 +538,20 @@ class Emoo:
                 P[p][self.rankpos] = 0
                 
                 F[0].append(p)  # add p to the list of the first front
+        logger(0, 'stop', 'assign_rank_1_1')
             
         # find the other non dominated fronts
         i = 0
+        logger(0, 'start', 'assign_rank_2_1')
         while len(F[i]) > 0:
             Q = []              # this will be the next front
             
             # take the elements from the last front
+            logger(0, 'start', 'assign_rank_2_2')
             for p in F[i]:
                 
                 # and take the elements that are dominated by p
+                logger(0, 'start', 'assign_rank_2_3')
                 for q in S[p]:
                     # decrease domination number of all elements that are dominated by p
                     n[q] -= 1
@@ -550,9 +560,12 @@ class Emoo:
                         
                         P[q][self.rankpos] = i + 1
                         Q.append(q)
-            
+                logger(0, 'stop', 'assign_rank_2_3')
+            logger(0, 'start', 'assign_rank_2_2')
+
             i += 1
-            F[i] = Q    # this is the next front
+            F.append(Q)    # this is the next front
+        logger(0, 'start', 'assign_rank_2_1')
         logger(0, 'stop', 'assign_rank')
     
     
