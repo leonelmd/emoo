@@ -11,16 +11,41 @@ experimental data. J Neurosci Methods; in press
 """
 import numpy as np
 import time
+import traceback
 
 try:
     from mpi4py import MPI
     mpi4py_loaded = True
 except:
     mpi4py_loaded = False
+
+VERBOSITY_LEVEL = 0
+    
+timestamp = lambda: time.strftime('%b %d, %H:%M:%S', time.localtime(time.time()))
+
+def logger(level, log_type, func_name):
+    if VERBOSITY_LEVEL > level:
+        return
+    stack = traceback.extract_stack()
+    for i,entry in enumerate(stack):
+        if 'emoo' in entry[-1]:
+            break
+    n = len(stack) - i - 1
+    message = 'EMOO '
+    if log_type.lower() == 'start':
+        message += 'STARTED  '
+    elif log_type.lower() == 'stop':
+        message += 'FINISHED '
+    else:
+        return
+    message += ('+' * (n-1))
+    fmt = '%s %{0}s @ %s'.format(30-n)
+    print(fmt % (message, func_name, timestamp()))
     
 class Emoo:
      
     def __init__(self, N, C, variables, objectives, infos=[]):
+        logger(0, 'start', '__init__')
         self.version = 1.0
         # standard population parameters
         self.size = N              # size of population, must be even and a multiple of processors - 1
@@ -83,9 +108,11 @@ class Emoo:
         else:
             self.master_mode = True
             self.mpi = False
+        logger(0, 'stop', '__init__')
         
         
     def setup(self, eta_m_0=20, eta_c_0=20, p_m=0.5, finishgen=-1, d_eta_m=0, d_eta_c=0, mutate_parents=False):
+        logger(0, 'start', 'setup')
         self.eta_m_0 = eta_m_0
         self.eta_c_0 = eta_c_0
         self.p_m = p_m
@@ -95,37 +122,43 @@ class Emoo:
         self.mutate_parents = mutate_parents
         
         self.setuped = True
+        logger(0, 'stop', 'setup')
         
     def normit(self, p):
+        logger(-1, 'start', 'normit')
         p_norm = np.zeros(len(p), dtype=float)
         
         for i in range(len(p)):
             p_norm[i] = (p[i]-self.variables[i][1])/(self.variables[i][2] - self.variables[i][1])
-                   
+
+        logger(-1, 'stop', 'normit')                   
         return p_norm
 
     def unnormit(self, p_norm):
+        logger(-1, 'start', 'unnormit')
         p = np.zeros(len(p_norm), dtype=float)
     
         for i in range(len(p_norm)):
             p[i] = p_norm[i]*(self.variables[i][2] - self.variables[i][1]) + self.variables[i][1]
-                   
+
+        logger(-1, 'stop', 'unnormit')                   
         return p
     
     def getpopulation_unnormed(self):
+        logger(0, 'start', 'getpopulation_unnormed')
         unnormed_population = []
         for individual in self.population:
             individual_unnormed = individual.copy()
             individual_unnormed[:self.para] = self.unnormit(individual[:self.para])
             unnormed_population.append(individual_unnormed)
-
+        logger(0, 'stop', 'getpopulation_unnormed')
         return np.array(unnormed_population)
 
     def initpopulation(self):
-        
+        logger(0, 'start', 'initpopulation')
         init_parameters = np.random.rand(self.size, self.para)
         init_properties = np.ones((self.size, self.obj+self.infos+3))*(-1.0)
-
+        logger(0, 'stop', 'initpopulation')
         self.population = np.c_[init_parameters, init_properties]       
     
     def evolution(self, generations):
@@ -134,6 +167,7 @@ class Emoo:
             return
         
         if(self.master_mode == True):
+            logger(0, 'start', 'evolution')
             
             self.eta_c = self.eta_c_0
             self.eta_m = self.eta_m_0
@@ -192,6 +226,7 @@ class Emoo:
                 time.sleep(5) # let all the slaves finish
             
             print "Evolution done!!!"
+            logger(0, 'stop', 'evolution')
 
         else:      
             self.evaluate_slave()
@@ -204,6 +239,7 @@ class Emoo:
         the better will be tranfered into the mating pool
         then the population is shuffelded again and the same happens again
         """
+        logger(0, 'start', 'selection')
         
         # the population has the size N now
         # and all fitnesses are assigned!
@@ -226,9 +262,11 @@ class Emoo:
         
         # this is our new population
         self.population = np.array(mating_pool)         
-            
+        logger(0, 'stop', 'selection')
+
     def crossover(self):
-        
+        logger(0, 'start', 'crossover')
+
         children = []
         
         while(len(children) + len(self.population) < self.capacity):
@@ -276,9 +314,11 @@ class Emoo:
 
         children = np.array(children)
         self.population = np.r_[self.population, children]
+        logger(0, 'stop', 'crossover')
 
          
     def mutation(self):
+        logger(0, 'start', 'mutation')
         
         # polynomial mutation (Deb, 124)
         for k in range(len(self.population)):
@@ -311,9 +351,10 @@ class Emoo:
                         individual[i] = 0
             
             individual[self.para:] = np.r_[self.no_objectives, self.no_properties]
+        logger(0, 'stop', 'mutation')
 
     def evaluate(self):
-        
+        logger(0, 'start', 'evaluate')
         new_population = []
         
         # is the master alone?
@@ -356,9 +397,10 @@ class Emoo:
                     new_population.append(np.r_[result[0], result[1], self.no_properties])
         
         self.population = np.array(new_population)
+        logger(0, 'stop', 'evaluate')
     
     def evaluate_individual(self, parameters):
-        
+        logger(0, 'start', 'evaluate_individual')
         parameters_unnormed = self.unnormit(parameters)
                     
         # make a dictionary with the unormed parameters and send them to the evaluation function
@@ -375,10 +417,11 @@ class Emoo:
         for info_name in self.infos_names:
             list_results.append(dict_results[info_name])
         
+        logger(0, 'stop', 'evaluate_individual')
         return np.array(list_results)
         
     def evaluate_slave(self):
-        
+        logger(0, 'start', 'evaluate_slave')
         # We wait for parameters
         # we do not see the whole population!
         
@@ -397,6 +440,7 @@ class Emoo:
                 self.comm.send(None, dest=0)
             else: 
                 self.comm.send([parameters, objectives_error], dest=0)
+        logger(0, 'stop', 'evaluate_slave')
     
     def assign_fitness(self):           
         """
@@ -404,6 +448,7 @@ class Emoo:
         and must be based on dominance, thus we determine all non dominated fronts and only use the best
         to transfer into the new generation
         """
+        logger(0, 'start', 'assign_fitness')
         if(self.obj > 1):
             self.assign_rank()
 
@@ -432,20 +477,24 @@ class Emoo:
         # now set the fitness, indiviauls are sorted, thus fitnes is easy to set
         fitness = range(0, len(self.population[:,0]))
         self.population[:,-1] = fitness   
-                    
-    
+        logger(0, 'stop', 'assign_fitness')
+
     def new_generation(self):
         # the worst are at the end, let them die, if there are too many
+        logger(0, 'start', 'new_generation')
         if(len(self.population) > self.size):
-            self.population = self.population[:self.size]
-         
-    def dominates(self, p, q):
+            self.population = self.population[:self.size] 
+        logger(0, 'stop', 'new_generation')
         
+    def dominates(self, p, q):
+        logger(-1, 'start', 'dominates')
+
         objectives_error1 = self.population[p][self.objpos:self.objpos+self.obj]
         objectives_error2 = self.population[q][self.objpos:self.objpos+self.obj]
         
         diff12 = objectives_error1 - objectives_error2
         
+        logger(-1, 'stop', 'dominates')
         # is individdum equal or better then individdum two?
         # and at least in one objective better
         # then it dominates individuum2
@@ -454,7 +503,7 @@ class Emoo:
 
     
     def assign_rank(self):
-            
+        logger(0, 'start', 'assign_rank')
         F = dict()
 
         P = self.population
@@ -504,9 +553,11 @@ class Emoo:
             
             i += 1
             F[i] = Q    # this is the next front
+        logger(0, 'stop', 'assign_rank')
     
     
     def crowding_distance_sort(self, front):
+        logger(0, 'start', 'crowding_distance_sort')
         
         sorted_front = front.copy()
         
@@ -532,6 +583,7 @@ class Emoo:
         ind = np.argsort(sorted_front[:,self.distpos])
         sorted_front = sorted_front[ind]
         sorted_front = sorted_front[-1 - np.arange(len(sorted_front))]
+        logger(0, 'stop', 'crowding_distance_sort')
                                                          
         return sorted_front
 
