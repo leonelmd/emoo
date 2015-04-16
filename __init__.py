@@ -487,41 +487,32 @@ class Emoo:
         logger(0, 'stop', 'new_generation')
         
     def dominates(self, p, q):
-        #logger(-1, 'start', 'dominates')
-
         objectives_error1 = self.population[p][self.objpos:self.objpos+self.obj]
         objectives_error2 = self.population[q][self.objpos:self.objpos+self.obj]
-        
         diff12 = objectives_error1 - objectives_error2
-        
-        #logger(-1, 'stop', 'dominates')
         # is individdum equal or better then individdum two?
         # and at least in one objective better
         # then it dominates individuum2
         # if not it does not dominate two (which does not mean that 2 may not dominate 1)
-        return np.random.uniform() < 0.5
         #return ( ((diff12<= 0).all()) and ((diff12 < 0).any()) )
-
+        return max(diff12) <= 0 and min(diff12) < 0
     
     def assign_rank(self):
         logger(0, 'start', 'assign_rank')
-        #F = dict()
+        F = dict()
 
         P = self.population
         
-        #S = dict()
-        #n = dict()
-        #F[0] = []
-        S = [[] for i in range(len(P))]
-        n = [0 for i in range(len(P))]
-        F = [[]]
+        S = dict()
+        n = dict()
+        F[0] = []
         
         # determine how many solutions are dominated or dominate
         logger(0, 'start', 'assign_rank_1_1')
         for p in range(len(P)):
             
-            #S[p] = []       # this is the list of solutions dominated by p
-            #n[p] = 0        # how many solutions are dominating p
+            S[p] = []       # this is the list of solutions dominated by p
+            n[p] = 0        # how many solutions are dominating p
             
             logger(0, 'start', 'assign_rank_1_2')
             for q in range(len(P)):
@@ -564,8 +555,8 @@ class Emoo:
             logger(0, 'start', 'assign_rank_2_2')
 
             i += 1
-            F.append(Q)    # this is the next front
-        logger(0, 'start', 'assign_rank_2_1')
+            F[i] = Q    # this is the next front
+        logger(0, 'stop', 'assign_rank_2_1')
         logger(0, 'stop', 'assign_rank')
     
     
