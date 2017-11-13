@@ -369,7 +369,7 @@ class Emoo:
                    
                     objectives_error = self.evaluate_individual(parameters)
                    
-                    if(objectives_error.any() != None):
+                    if(objectives_error is not None):
                         new_population.append(np.r_[parameters, objectives_error, self.no_properties])
                 else:
                     new_population.append(individual)
@@ -393,7 +393,7 @@ class Emoo:
             for i in range(i):
                 result = self.comm.recv(source=MPI.ANY_SOURCE)
                 
-                if result != None:
+                if result is not None:
                     new_population.append(np.r_[result[0], result[1], self.no_properties])
         
         self.population = np.array(new_population)
@@ -429,14 +429,14 @@ class Emoo:
             parameters = self.comm.recv(source=0) # wait....
             
             # Does the master want the slave to shutdown?
-            if(parameters == None):
+            if(parameters is None):
                 # Slave finishing...
                 break
             
             objectives_error = self.evaluate_individual(parameters)
             
             #objectives_error = self.get_objectives_error(self.unnormit(parameters))
-            if(objectives_error == None):
+            if(objectives_error is None):
                 self.comm.send(None, dest=0)
             else: 
                 self.comm.send([parameters, objectives_error], dest=0)
