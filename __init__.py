@@ -369,7 +369,7 @@ class Emoo:
                    
                     objectives_error = self.evaluate_individual(parameters)
                    
-                    if(objectives_error != None):
+                    if(objectives_error.any() != None):
                         new_population.append(np.r_[parameters, objectives_error, self.no_properties])
                 else:
                     new_population.append(individual)
