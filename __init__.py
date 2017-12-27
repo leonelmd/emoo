@@ -159,9 +159,20 @@ class Emoo:
         init_parameters = np.random.rand(self.size, self.para)
         init_properties = np.ones((self.size, self.obj+self.infos+3))*(-1.0)
         logger(0, 'stop', 'initpopulation')
-        self.population = np.c_[init_parameters, init_properties]       
+        self.population = np.c_[init_parameters, init_properties]
+
+    def loadpopulation(self, initial_population):
+        logger(0, 'start', 'loadpopulation')
+        # Assuming population was written using check_population function
+        # Need to normalize for consistency with initialization of random population
+        init_parameters = initial_population[:, :self.para]
+        for i in range(init_parameters.shape[0]):
+            init_parameters[i, :] = self.normit(init_parameters[i, :])
+        init_properties = initial_population[:, self.para+1:]
+        logger(0, 'stop', 'loadpopulation')
+        self.population = np.c_[init_parameters, init_properties]              
     
-    def evolution(self, generations):
+    def evolution(self, generations, initial_population=None):
         if self.setuped == False:
             print "Please run setup"
             return
@@ -172,7 +183,10 @@ class Emoo:
             self.eta_c = self.eta_c_0
             self.eta_m = self.eta_m_0
             
-            self.initpopulation()
+            if initial_population is None:
+                self.initpopulation()
+            else:
+                self.loadpopulation(initial_population)
             
             print "This is Evolutionary Multiobjective Optimization (Emoo), Version %.1f."%self.version
             print "\n www.g-node.org/emoo" 
