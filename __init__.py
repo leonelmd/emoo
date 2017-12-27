@@ -168,7 +168,7 @@ class Emoo:
         init_parameters = initial_population[:, :self.para]
         for i in range(init_parameters.shape[0]):
             init_parameters[i, :] = self.normit(init_parameters[i, :])
-        init_properties = initial_population[:, self.para+1:]
+        init_properties = np.c_[initial_population[:, self.para+1:], np.ones((self.size,1))*-1.0]
         logger(0, 'stop', 'loadpopulation')
         self.population = np.c_[init_parameters, init_properties]              
     
@@ -202,7 +202,8 @@ class Emoo:
         
             print "Starting Evolution..."
             
-            self.evaluate()
+            if initial_population is None:
+                self.evaluate()
 
             self.assign_fitness()
             
